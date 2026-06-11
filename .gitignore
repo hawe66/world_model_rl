@@ -1,0 +1,25 @@
+# Lock file — platform-specific (XPU/CUDA), regenerate per environment
+uv.lock
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.ruff_cache/
+
+# Training outputs (large files)
+results/checkpoints/
+results/**/*.gif
+results/**/*.mp4
+results/**/*.npz
+
+# Editor
+.vscode/
+.idea/
+*.swp
