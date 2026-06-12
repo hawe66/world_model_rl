@@ -48,8 +48,8 @@ world-model-zoo/
 | 도메인 | 환경 | 예산 | 사용 알고리즘 |
 |---|---|---|---|
 | Atari 100k | Pong, Breakout, Boxing | 100k env steps (400k frames) | DreamerV2/V3, IRIS, STORM, DIAMOND |
-| DMC (proprio) | walker-walk, cheetah-run | 500k env steps | DreamerV1, TD-MPC2 |
-| DMC (vision) | walker-walk | 500k env steps | DreamerV3, TD-MPC2 |
+| DMC (proprio) | walker-walk, cheetah-run | 500k env steps | TD-MPC2 |
+| DMC (vision) | walker-walk, cheetah-run (V1) · walker-walk (V3, TD-MPC2 stretch) | 500k env steps | DreamerV1, DreamerV3, TD-MPC2(stretch) |
 
 평가: 학습 중 주기적으로 10 episodes 평균, 최종 점수는 마지막 체크포인트 기준 30 episodes 평균.
 

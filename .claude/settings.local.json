@@ -2,7 +2,18 @@
   "permissions": {
     "allow": [
       "PowerShell(git *)",
-      "PowerShell(uv run *)"
+      "PowerShell(uv run *)",
+      "WebFetch(domain:arxiv.org)",
+      "WebSearch",
+      "Bash(python -)",
+      "Bash(PYTHONUTF8=1 uv run *)",
+      "Bash(/d/world_model_rl/.venv/Scripts/python.exe *)",
+      "WebFetch(domain:ar5iv.labs.arxiv.org)",
+      "Bash(curl -sL -o /d/world_model_rl/_tmp_mrq.pdf https://arxiv.org/pdf/2501.16142)",
+      "Bash(curl -sL https://arxiv.org/html/2301.04104v2 -o /tmp/dreamerv3_v2.html)",
+      "Read(//tmp/**)",
+      "Bash(curl -sL https://arxiv.org/pdf/2301.04104v2 -o /tmp/dreamerv3_v2.pdf)",
+      "Bash(cygpath -w /tmp/dreamerv3_v2.pdf)"
     ]
   }
 }
