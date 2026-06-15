@@ -14,7 +14,10 @@
       "Read(//tmp/**)",
       "Bash(curl -sL https://arxiv.org/pdf/2301.04104v2 -o /tmp/dreamerv3_v2.pdf)",
       "Bash(cygpath -w /tmp/dreamerv3_v2.pdf)",
-      "Bash(PYTHONIOENCODING=utf-8 \"/c/Users/조영하/AppData/Local/Python/pythoncore-3.12-64/python.exe\" -)"
+      "Bash(PYTHONIOENCODING=utf-8 \"/c/Users/조영하/AppData/Local/Python/pythoncore-3.12-64/python.exe\" -)",
+      "Bash(uv --version)",
+      "Bash(uv run *)",
+      "Bash(uv sync *)"
     ]
   }
 }

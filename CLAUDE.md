@@ -13,7 +13,7 @@ Deep model-based RL world model 계보(PlaNet→Dreamer v1/v2/v3, TD-MPC2, IRIS,
 
 ## 현재 진행 상태 (task 완료 시 갱신할 것)
 
-- Task 0 진행 중: `pyproject.toml` / `.python-version` / `uv sync` 완료. `wm/` 패키지, `scripts/`, `tests/`, pre-commit은 미생성 — `docs/superpowers/plans/2026-06-11-task0-repo-bootstrap.md`의 Subtask 2부터 이어서 진행.
+- Task 0 완료: `pyproject.toml` / `.python-version` / `uv sync`, `wm/` 패키지, `scripts/smoke.py`, `tests/`, pre-commit(ruff/ruff-format), `wm/common/device.py`, `wm/common/checkpoint.py`(save/load + RNG·optimizer·replay_buffer·extra 왕복, 원자적 저장, `map_location` cpu↔accelerator) 모두 완료. 테스트 12개 green. 이 머신 특이사항 두 가지는 README "로컬 개발 주의사항"에 기록 (테스트는 `uv run python -m pytest`로 실행 / Intel 드라이버 부재로 `get_device()`가 cpu 폴백).
 - Task 1 완료: `docs/SURVEY.md`, `docs/TARGETS.md` 작성됨 (전 조합 점수·출처 확정, TBD 없음). 잔여는 논문 하이퍼파라미터 → `wm/configs/` yaml 옮기기뿐 (각 알고리즘 task 착수 시 진행하기로 결정). DreamerV2 Atari 100k는 공식 수치 부재로 상대 타깃 채택, DreamerV3는 Nature 2025 수치 채택 (모두 사용자 확인됨). TD-MPC2·DreamerV3-vision @500k는 3자 재실행 테이블(MR.Q) 채택, DreamerV1은 원저자 수치의 CURL 정리본을 **하한 참고치**로 채택 (측정 시점 불일치 — TARGETS.md 노트 참조). Critic 리뷰 반영 완료(2026-06): DMC step 축 = agent step 명문화, 판정은 Pong만 HNS, Task 4는 latent overshooting 채택(사용자 확인됨).
 
 ## 절대 규칙

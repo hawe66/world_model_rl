@@ -104,8 +104,13 @@ uv run python scripts/eval.py --algo dreamer_v3 --env walker-walk --ckpt results
 
 # 스모크 테스트
 uv run python scripts/smoke.py
-uv run pytest
+uv run python -m pytest
 ```
+
+### 로컬 개발 주의사항 (이 개발 머신 한정)
+
+- 레포가 네트워크 홈드라이브(`D:` → UNC) 위에 있으면 `uv run pytest`(엔트리포인트)가 `c10.dll` 로드 `WinError 87`로 실패한다. 테스트는 **`uv run python -m pytest`** 로 실행한다.
+- Intel GPU 드라이버가 없는 머신에서는 `get_device()`가 **cpu**로 폴백한다(정상). torch가 backward 시 "Failed to initialize XPU devices" 경고를 한 번 낼 수 있으나 무해하다. 디바이스는 하드코딩하지 말고 항상 `get_device()`를 쓴다.
 
 ---
 
