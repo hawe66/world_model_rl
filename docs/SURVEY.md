@@ -128,7 +128,7 @@ graph LR
 - return을 5–95 percentile로 정규화해 entropy 계수 고정 가능
 - critic EMA regularizer, 높은 replay ratio 등 학습 안정화
 - 구현 기준은 Nature 2025 버전 세부사항 (로드맵 Task 7)
-- 하이퍼파라미터: arXiv v2 부록 "Hyperparameters" 표 (RMSNorm+SiLU, LaProp, B=16, T=64 등)
+- 하이퍼파라미터: arXiv v2 Table 4 "Dreamer hyperparameters" (β_dyn=1, β_rep=0.1, unimix 1% 행 확인; RMSNorm+SiLU, LaProp, B=16, T=64 등). v1은 β_dyn=0.5였음 (v2에서 1.0으로 변경) — Task 7 구현 시 버전 혼동 예방.
 
 ## 6. TD-MPC → TD-MPC2 — Hansen et al. ICML 2022 / ICLR 2024 (arXiv:2203.04955 / 2310.16828)
 

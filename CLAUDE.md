@@ -8,7 +8,7 @@ Deep model-based RL world model 계보(PlaNet→Dreamer v1/v2/v3, TD-MPC2, IRIS,
 - 클라우드 학습 워크플로우: `docs/GPU_CLOUD_SETUP.md` — Colab/Kaggle/vast.ai 운용 및 `--resume` 설계.
 - task별 상세 구현 플랜: `docs/superpowers/plans/` — 존재하면 로드맵보다 우선.
 - 계보 서베이: `docs/SURVEY.md` — 알고리즘별 핵심 기여·아키텍처·선행 대비 diff.
-- 타깃 점수: `docs/TARGETS.md` — 재현 성공 기준은 논문 보고 점수 ±15%, 3 seeds 평균. Pong 등 음수 축 환경은 HNS 기준 판정 (문서 내 판정 기준 참조).
+- 타깃 점수: `docs/TARGETS.md` — 재현 성공 기준은 논문 보고 점수 ±15%, 3 seeds 평균. Pong(음수 축)만 HNS 기준 판정 (문서 내 판정 기준 참조).
 - 알고리즘별 구현 노트: `docs/notes/<algo>.md` (구현 중 생성) — 발견한 함정/트릭은 반드시 여기에 기록.
 
 ## 현재 진행 상태 (task 완료 시 갱신할 것)

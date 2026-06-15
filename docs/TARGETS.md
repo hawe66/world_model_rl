@@ -22,12 +22,12 @@
 | 알고리즘 | Pong | Breakout | Boxing | 출처 (원문) | 교차 확인 |
 |---|---|---|---|---|---|
 | DreamerV2 | — | — | — | **공식 100k 수치 없음** (아래 노트) | — |
-| DreamerV3 (arXiv v1, 2023) | 18 | 31 | 78 | DreamerV3 arXiv:2301.04104**v1** 결과 테이블 (번호 미확인 — v1 PDF 접근 불가, Task 7 전 확인) | DIAMOND Tab.1 (18.0/31.0/78.0) ✓ · HarmonyDream Tab.3 "Original" ✓ |
+| DreamerV3 (arXiv v1, 2023) | 18 | 31 | 78 | DreamerV3 arXiv:2301.04104**v1** Table S.1 "Atari scores at 400K environment frames" (ar5iv v1 확인) | DIAMOND Tab.1 (18.0/31.0/78.0) ✓ · HarmonyDream Tab.3 "Original" ✓ |
 | **DreamerV3 (Nature 2025) ← 채택 타깃** | **−4** | **10** | **82** | arXiv:2301.04104**v2** **Table 9** "Atari100k scores" (직접 확인) | — (v1과 상이, 아래 노트) |
 | IRIS | 14.6 | 83.7 | 70.1 | IRIS arXiv:2209.00588 Table 1 (직접 확인) | DreamerV3 v2 Table 9 (15/84/70) ✓ · DIAMOND Tab.1 ✓ |
 | STORM | 11.3 | 15.9 | 79.7 | STORM arXiv:2310.09615 Table 2 (PDF 직접 확인 — 원문 표기는 정수 11/16/80) | DIAMOND Tab.1 (11.3/15.9/79.7) ✓ |
 | DIAMOND (5 seeds) | 20.4 | 132.5 | 86.9 | DIAMOND arXiv:2405.12399 Table 1 (직접 확인) | — |
-| (참고) TWM | 18.8 | 20.0 | 77.5 | TWM arXiv:2303.07109 (원문 테이블 번호 추후 확인 — PDF 접근 불가) | DIAMOND Tab.1 · DreamerV3 v2 Table 9 ✓ |
+| (참고) TWM | 18.8 | 20.0 | 77.5 | TWM arXiv:2303.07109 Table 1 (ar5iv 확인, 5 runs/game) | DIAMOND Tab.1 · DreamerV3 v2 Table 9 ✓ |
 
 ### ±15% 타깃 구간 (채택 수치 기준)
 
@@ -50,7 +50,7 @@
 
 ### 노트 — DreamerV3 버전 차이
 
-arXiv v1(2023)과 Nature 2025(arXiv v2)의 Atari 100k 수치가 크게 다름 (Pong 18→−4, Breakout 31→10, Boxing 78→82; v2는 gamer mean 125%). **결정(사용자 확인됨): 구현 기준과 동일한 Nature 2025 수치를 타깃**으로 하고, Pong·Breakout처럼 raw 점수가 낮은 항목은 HNS 기준으로 판정. v1 수치는 참고용으로 병기.
+arXiv v1(2023)과 Nature 2025(arXiv v2)의 Atari 100k 수치가 크게 다름 (Pong 18→−4, Breakout 31→10, Boxing 78→82; v2는 gamer mean 125%). **결정(사용자 확인됨): 구현 기준과 동일한 Nature 2025 수치를 타깃**으로 한다 (판정은 위 판정 기준대로 Pong만 HNS, Breakout·Boxing은 raw ±15%). v1 수치는 참고용으로 병기.
 
 ### 노트 — STORM 원문 직접 열람 (해소됨)
 
