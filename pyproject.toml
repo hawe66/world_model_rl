@@ -8,6 +8,7 @@ dependencies = [
     "torchvision>=0.20",
     "gymnasium[atari]>=0.29",
     "dm_control>=1.0",
+    "mujoco>=3.8.1,<3.9",  # 3.9 removed MjModel.flex_bandwidth that dm_control 1.0.41 reads
     "tensorboard>=2.16",
     "einops>=0.7",
     "hydra-core>=1.3",
@@ -64,3 +65,9 @@ ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Headless machines (no OpenGL driver) cannot render DMC; the probe leaves a
+# MuJoCo GL context whose destructor warns. These are local-only artifacts —
+# scoped by message so genuine issues still surface on GL-capable (cloud) boxes.
+filterwarnings = [
+    "ignore:.*MjrContext.*:pytest.PytestUnraisableExceptionWarning",
+]
