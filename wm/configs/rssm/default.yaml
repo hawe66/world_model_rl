@@ -1,0 +1,54 @@
+# RSSM (PlaNet) config. Hyperparameters from the PlaNet paper (Hafner et al. 2019);
+# correct against the appendix if any recalled value is off (see docs/notes/rssm.md).
+# image_shape's channel count and action_dim are derived from the npz at runtime.
+
+data:
+  npz: results/random/walker_walk.npz
+seq_len: 50
+batch_size: 50
+buffer_capacity: 1000000
+to_float: true
+
+model:
+  deter: 200          # GRU deterministic state h
+  stoch: 30           # Gaussian stochastic latent z
+  hidden: 200         # MLP hidden width (cell / prior / posterior)
+  cnn_depth: 32       # encoder base channels (32,64,128,256) -> 1024 embed @64x64
+  reward_units: 200
+  reward_layers: 2
+  min_std: 0.1
+
+loss:
+  free_nats: 3.0      # clamp KL below this many nats
+  kl_scale: 1.0
+  overshoot_d: 50     # latent-overshooting distance D (<= seq_len)
+  overshoot_beta: 1.0
+  recon_scale: 1.0
+  reward_scale: 1.0
+
+optim:
+  lr: 1.0e-3
+  eps: 1.0e-4
+  grad_clip: 1000.0
+
+train:
+  steps: 100000
+  log_every: 100
+  ckpt_every: 5000
+  device: auto        # resolved via wm.common.device.get_device()
+
+open_loop:
+  context: 5          # posterior context steps
+  horizon: 45         # prior-only prediction steps
+  every: 10000        # save an open-loop grid/gif every N train steps
+
+seed: 0
+
+# Applied on top when --smoke: tiny dims + few steps for a CPU sanity run.
+smoke:
+  seq_len: 8
+  batch_size: 4
+  model: { deter: 32, stoch: 8, hidden: 32, cnn_depth: 8, reward_units: 32 }
+  loss: { overshoot_d: 3 }
+  train: { steps: 10, log_every: 1, ckpt_every: 5 }
+  open_loop: { context: 2, horizon: 3, every: 5 }

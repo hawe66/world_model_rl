@@ -1,0 +1,89 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "wm/common — Shared Foundation (Tasks 0–3)",
+  "description": "Onboarding walkthrough of the shared infrastructure every world-model algorithm will build on: device, checkpointing, the common env interface, data collection, the replay buffer, and logging/eval/viz. Follow it top to bottom to understand the data path before Task 4 (RSSM) lands.",
+  "ref": "main",
+  "steps": [
+    {
+      "directory": "wm/common",
+      "title": "The Shared Foundation",
+      "description": "Situation: every algorithm in wm/algos/ (rssm, dreamer_v1..v3, tdmpc2, ...) shares this layer instead of reimplementing plumbing.\nMechanism: env wrappers + buffer + logger + eval + viz + device/checkpoint utilities, all pure PyTorch/numpy.\nImplication: changes here must stay backward-compatible — they ripple to every algorithm.\nGotcha: nothing here imports algorithm code; the dependency only flows one way (algos -> common)."
+    },
+    {
+      "file": "wm/common/device.py",
+      "pattern": "def get_device",
+      "title": "Device Abstraction",
+      "description": "Situation: the single source of truth for which accelerator to use.\nMechanism: priority cuda > xpu > mps > cpu, returned as a torch.device.\nImplication: hardware-hardcoding is banned project-wide — always call this. On the dev machine it falls back to cpu (no Intel driver); on the cloud box the same code picks cuda.\nGotcha: torch may print a one-time 'Failed to initialize XPU' warning here — it is expected and harmless."
+    },
+    {
+      "file": "wm/common/checkpoint.py",
+      "pattern": "def save_checkpoint",
+      "title": "The --resume Backbone",
+      "description": "Situation: DreamerV3 runs exceed a Colab session, so resume was designed before any training code.\nMechanism: model/optimizer state, env step, RNG (python/numpy/torch + cuda/xpu), and an optional replay_buffer are written to a temp file then os.replace'd (atomic).\nImplication: an interrupted save never corrupts the last good checkpoint; map_location lets a CUDA run resume on CPU.\nGotcha: the replay_buffer argument expects an object with state_dict()/load_state_dict() — that contract is honored by the buffer you'll see shortly."
+    },
+    {
+      "file": "wm/common/envs/base.py",
+      "pattern": "class Transition",
+      "title": "The Common Interface (cornerstone)",
+      "description": "Situation: this is the single struct every env wrapper returns from reset() and step().\nMechanism: obs dict (image uint8 HWC, or state float32) + action + reward + three flags.\nImplication: the is_last vs is_terminal split is the most important design decision in the repo — is_last means 'episode over', is_terminal means 'truly over, zero the value bootstrap'. Time-limit truncation is is_last=True, is_terminal=False so the critic still bootstraps.\nGotcha: reset() also returns a Transition (is_first=True, dummy zero action/reward) so the buffer stores one uniform stream and episode boundaries live in the data itself."
+    },
+    {
+      "file": "wm/common/envs/atari.py",
+      "pattern": "repeat_action_probability=0.0",
+      "title": "Atari Preprocessing",
+      "description": "Situation: the ALE base env is configured for the Atari-100k standard.\nMechanism: frameskip=1 + repeat_action_probability=0.0 means the wrapper owns action-repeat (4) and sticky actions are OFF; step() sums reward over the repeat and max-pools the last two raw frames (see 'pooled = ...' below the constructor) to kill sprite flicker before resize+grayscale.\nImplication: without sticky-off you lose determinism; without max-pool you get flickering observations.\nGotcha: -v5 envs default sticky to 0.25 — it must be explicitly zeroed, exactly as done here."
+    },
+    {
+      "file": "wm/common/envs/dmc.py",
+      "pattern": "is_terminal=False,  # DMC",
+      "title": "DMC Has No True Terminal",
+      "description": "Situation: DeepMind Control tasks are fixed-length (1000 control steps), with no success/failure terminal.\nMechanism: is_last is driven by the time limit (TimeStep.last()), but is_terminal is hard-wired False.\nImplication: the critic always bootstraps off the final DMC state — treating the time limit as terminal would bias returns downward.\nGotcha: proprio mode works on CPU; vision mode needs an OpenGL backend and is therefore validated on the cloud box, not this driverless machine."
+    },
+    {
+      "file": "scripts/collect_random.py",
+      "pattern": "def _sample_action",
+      "title": "Producing Data (npz)",
+      "description": "Situation: this script rolls a random policy and saves episodes to npz — the input to the buffer and to Task 4 training.\nMechanism: one polymorphic sampler handles both domains — discrete (hasattr 'n') vs continuous action spaces.\nImplication: the saved schema (image|state, action, reward, is_first/is_last/is_terminal, episode) is exactly what the buffer's from_npz expects.\nGotcha: images are stored uint8 to save memory; the float/CHW conversion is deferred to training time."
+    },
+    {
+      "file": "wm/common/buffer.py",
+      "pattern": "class SequenceReplayBuffer",
+      "title": "Replay Buffer — Storage",
+      "description": "Situation: a fixed-capacity ring over a contiguous transition stream.\nMechanism: a _start pointer maps logical (insertion-order) indices to physical slots via modulo; when full it evicts oldest (FIFO).\nImplication: because logical order IS insertion order, a sampled window never straddles a discontinuity even after wrap-around.\nGotcha: arrays are allocated lazily on the first add(), inferring obs keys/shapes/dtypes from the first transition."
+    },
+    {
+      "file": "wm/common/buffer.py",
+      "pattern": "    def sample(",
+      "title": "Replay Buffer — Cross-Boundary Sampling",
+      "description": "Situation: the key sampling decision (confirmed with the user) — Dreamer-style stream sampling.\nMechanism: pick uniform starts over [0, size-L] and gather length-L windows; windows MAY cross episode boundaries.\nImplication: the per-step is_first flag inside a window tells the consumer (the RSSM, Task 4) where to reset its recurrent state — no episode-length constraint, no wasted data.\nGotcha: sample() raises if size < L; gather() (just above) is the deterministic core used by tests, and state_dict()/load_state_dict() right below make the buffer checkpointable for --resume."
+    },
+    {
+      "file": "wm/common/logger.py",
+      "pattern": "class Logger",
+      "title": "Dual Logging",
+      "description": "Situation: metrics need to be both human-greppable and TensorBoard-viewable.\nMechanism: log_scalar writes one JSON line to metrics.jsonl AND mirrors to a SummaryWriter; usable as a context manager.\nImplication: the step axis is always env step (= agent step) so curves across algorithms are directly comparable.\nGotcha: jsonl is append-mode — re-running into the same logdir concatenates rather than overwrites."
+    },
+    {
+      "file": "wm/common/eval.py",
+      "pattern": "def evaluate",
+      "title": "Fixed Eval Protocol",
+      "description": "Situation: one evaluation function for all algorithms.\nMechanism: rolls policy(obs, mode) for N episodes in the env it is handed, returning return mean/std and lengths.\nImplication: the caller is responsible for passing a SEPARATE eval env (own seed) — the protocol enforces separation by contract, keeping eval off the training env's RNG.\nGotcha: it is unit-tested with a random policy and a fake env, so it works long before any actor exists."
+    },
+    {
+      "file": "wm/common/viz.py",
+      "pattern": "def open_loop_grid",
+      "title": "The #1 Debugging Tool",
+      "description": "Situation: per the project's debugging order, world-model open-loop prediction quality is checked FIRST when scores are bad.\nMechanism: open_loop_grid stacks real frames above predicted frames; frames_to_grid/_gif handle the filmstrip and animation (grayscale channel squeezed).\nImplication: this is the lens you'll use in Task 4 to eyeball whether the RSSM rollout tracks reality.\nGotcha: no model exists yet, so the demo/tests pass pred=real as a placeholder — Task 4's decoder output becomes the real pred."
+    },
+    {
+      "file": "scripts/demo_buffer_viz.py",
+      "pattern": "def main",
+      "title": "It All Connects Here",
+      "description": "Situation: the end-to-end smoke path — npz -> buffer -> (B, L) sample -> viz.\nMechanism: from_npz loads the stream, sample() draws a batch, and the first sequence is written as grid/gif/open_loop images.\nImplication: this is the Task 3 Definition-of-Done check and a template for how Task 4 will wire the same pieces around a model.\nGotcha: proprio-only npz has no 'image' modality, so the demo exits with a clear message instead of failing."
+    },
+    {
+      "title": "Where To Go Next",
+      "description": "You can now trace the full data path: env wrapper -> Transition -> collect_random npz -> SequenceReplayBuffer -> (B, L) batch -> logger/eval/viz. The next layer is Task 4: a standalone RSSM (PlaNet-style) that consumes these (B, L) batches, resets state on is_first, and feeds its decoder output into open_loop_grid for the first real prediction check. Read docs/notes/envs.md and docs/notes/infra.md for the design decisions and gotchas behind what you just toured."
+    }
+  ]
+}

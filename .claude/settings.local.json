@@ -17,7 +17,9 @@
       "Bash(PYTHONIOENCODING=utf-8 \"/c/Users/조영하/AppData/Local/Python/pythoncore-3.12-64/python.exe\" -)",
       "Bash(uv --version)",
       "Bash(uv run *)",
-      "Bash(uv sync *)"
+      "Bash(uv sync *)",
+      "Bash(uv pip *)",
+      "PowerShell(Start-Process \"D:\\\\world_model_rl\\\\walkthrough-overview.html\"; \"opened\")"
     ]
   }
 }

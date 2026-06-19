@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en" style="color-scheme: dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>world-model-zoo — Project Overview Walkthrough</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: {
+        wt: {
+          bg: '#000000', surface: '#0a0a0a', raised: '#141414',
+          border: '#2a2a2a', fg: '#ffffff', muted: '#a0a0a0',
+          accent: '#a855f7', file: '#c084fc', red: '#ef4444',
+        },
+        node: {
+          component: '#a855f7', composable: '#7c3aed', utility: '#6d28d9',
+          external: '#525252', event: '#d8b4fe', data: '#9333ea',
+        },
+      }}},
+    };
+  </script>
+  <style>
+    .mermaid-wrap svg { max-width: none !important; height: auto !important; }
+    .mermaid-wrap .node { cursor: pointer; }
+    .mermaid-wrap .node:hover rect,
+    .mermaid-wrap .node:hover polygon,
+    .mermaid-wrap .node:hover circle,
+    .mermaid-wrap .node:hover .label-container { filter: brightness(1.3); transition: filter .15s; }
+    .dt-body p { color:#a0a0a0; font-size:.88rem; line-height:1.65; margin-bottom:10px; }
+    .dt-body p code {
+      background:rgba(168,85,247,.12); padding:1px 6px; border-radius:4px;
+      font-family:'SF Mono','Fira Code',monospace; font-size:.82rem; color:#c084fc;
+    }
+    .dt-body .shiki, .dt-body pre.code-fallback {
+      background: #000000; border: 1px solid #2a2a2a; border-radius: 8px;
+      padding: 14px 16px; overflow-x: auto; margin: 8px 0 14px;
+    }
+    .dt-body .shiki { background: #000000 !important; }
+    .dt-body .shiki code, .dt-body pre.code-fallback code {
+      font-family: 'SF Mono','Fira Code',monospace; font-size: .78rem; line-height: 1.55;
+      background: none; padding: 0; border-radius: 0;
+    }
+    .dt-body .shiki code { color: inherit; }
+    .dt-body pre.code-fallback code { color: #e0e0e0; }
+    kbd { background:#141414; border:1px solid #2a2a2a; border-radius:4px; padding:0 5px; font-family:monospace; }
+  </style>
+</head>
+<body class="bg-wt-bg">
+  <div id="root"></div>
+  <script type="module">
+    import { createHighlighter } from 'https://cdn.jsdelivr.net/npm/shiki@3.22.0/+esm';
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    const TITLE = "world-model-zoo — Project Overview";
+    const SUBTITLE = "How collected experience becomes a trained PlaNet/RSSM world model";
+
+    const SUMMARY = "world-model-zoo reimplements the model-based RL world-model lineage (PlaNet → Dreamer → TD-MPC2 …) in pure PyTorch. The data path is linear: domain env wrappers emit a unified Transition, a random policy collects episodes into an npz, a sequence replay buffer streams length-L windows, and the RSSM world model learns to reconstruct frames and rewards under a latent-overshooting KL. Shared infra (device, logging, atomic checkpointing, open-loop viz) makes every run resumable and inspectable.";
+
+    const DIAGRAM = `graph TD
+      subgraph data_collection["Environments & Data"]
+        envWrappers["Environment Wrappers"]
+        transitionInterface["Unified Transition"]
+        randomCollectionPipeline["Random Collection to NPZ"]
+      end
+      subgraph infra["Shared Infrastructure"]
+        sequenceReplayBuffer["Sequence Replay Buffer"]
+        deviceAndLogging["Device & Logging"]
+        atomicCheckpointing["Atomic Checkpoint / Resume"]
+        evalAndViz["Eval & Open-loop Viz"]
+      end
+      subgraph world_model["World Model — RSSM"]
+        rssmCore["RSSM Core (h, z)"]
+        convEncoderDecoder["Conv Encoder / Decoder + Reward"]
+        latentOvershooting["Latent Overshooting KL"]
+      end
+      subgraph training["Training"]
+        trainRssmLoop["Train Loop (train_rssm.py)"]
+      end
+
+      envWrappers -->|"emit"| transitionInterface
+      transitionInterface -->|"recorded by"| randomCollectionPipeline
+      randomCollectionPipeline -->|"writes npz"| sequenceReplayBuffer
+      sequenceReplayBuffer -->|"samples (B,L)"| trainRssmLoop
+      trainRssmLoop -->|"observe + loss"| rssmCore
+      rssmCore -->|"encode / decode"| convEncoderDecoder
+      rssmCore -->|"regularized by"| latentOvershooting
+      trainRssmLoop -->|"places tensors, logs"| deviceAndLogging
+      trainRssmLoop ==>|"saves state"| atomicCheckpointing
+      atomicCheckpointing -.->|"restores buffer/RNG"| sequenceReplayBuffer
+      rssmCore -->|"open-loop preds"| evalAndViz
+      trainRssmLoop -->|"renders"| evalAndViz
+
+      class transitionInterface,sequenceReplayBuffer data
+      class envWrappers external
+      class randomCollectionPipeline,trainRssmLoop component
+      class rssmCore,convEncoderDecoder,latentOvershooting composable
+      class deviceAndLogging,atomicCheckpointing,evalAndViz utility
+
+      classDef component fill:#a855f7,stroke:#c084fc,color:#fff
+      classDef composable fill:#7c3aed,stroke:#a78bfa,color:#fff
+      classDef utility fill:#6d28d9,stroke:#8b5cf6,color:#fff
+      classDef external fill:#525252,stroke:#737373,color:#fff
+      classDef data fill:#9333ea,stroke:#a855f7,color:#fff
+
+      click envWrappers nodeClickHandler "View details"
+      click transitionInterface nodeClickHandler "View details"
+      click randomCollectionPipeline nodeClickHandler "View details"
+      click sequenceReplayBuffer nodeClickHandler "View details"
+      click deviceAndLogging nodeClickHandler "View details"
+      click atomicCheckpointing nodeClickHandler "View details"
+      click evalAndViz nodeClickHandler "View details"
+      click rssmCore nodeClickHandler "View details"
+      click convEncoderDecoder nodeClickHandler "View details"
+      click latentOvershooting nodeClickHandler "View details"
+      click trainRssmLoop nodeClickHandler "View details"
+    `;
+
+    const NODES = {
+      transitionInterface: {
+        title: "Unified Transition",
+        description: "The single data 'language' every environment speaks and every consumer understands: an obs dict plus action, reward, and the three Dreamer episode flags. It lets the buffer, world model, and collectors stay domain-agnostic across Atari and DMC.",
+        files: ["wm/common/envs/base.py"],
+        code: `@dataclass
+class Transition:
+    obs: dict[str, np.ndarray]
+    action: np.ndarray
+    reward: float
+    is_first: bool
+    is_last: bool
+    is_terminal: bool`,
+        lang: "python",
+      },
+      envWrappers: {
+        title: "Environment Wrappers (Atari + DMC)",
+        description: "Domain wrappers that adapt third-party simulators (ALE for Atari, dm_control for DMC) behind the common Env ABC. They handle action-repeat, frame max-pooling/grayscale (Atari) or proprio/vision rendering (DMC) and translate native terminated/truncated flags into Transition semantics (is_terminal excludes time-limit truncation).",
+        files: ["wm/common/envs/atari.py", "wm/common/envs/dmc.py"],
+        code: `for _ in range(self.action_repeat):
+    frame, reward, terminated, truncated, info = self._env.step(int(action))
+    total_reward += float(reward)
+pooled = frames[-1] if len(frames) == 1 else np.maximum(frames[-1], frames[-2])`,
+        lang: "python",
+      },
+      randomCollectionPipeline: {
+        title: "Random Collection to NPZ",
+        description: "Entry-point script that rolls out a random policy through any Env (Atari or DMC via polymorphism) and serializes the recorded Transitions into a compressed npz dataset. This produces the offline experience that the world model trains on.",
+        files: ["scripts/collect_random.py"],
+        code: `env = _build_env(args)
+for ep in range(args.episodes):
+    t = env.reset(); record(t, ep)
+    for _ in range(args.max_steps):
+        t = env.step(_sample_action(env.action_space, rng))
+        record(t, ep)`,
+        lang: "python",
+      },
+      sequenceReplayBuffer: {
+        title: "Sequence Replay Buffer",
+        description: "A fixed-capacity ring buffer (uint8 image storage) that uniformly samples length-L windows for sequence training. Windows may cross episode boundaries — is_first flags drive recurrent-state resets — and state_dict makes the buffer part of the resumable checkpoint.",
+        files: ["wm/common/buffer.py"],
+        code: `def sample(self, batch_size, seq_len, *, to_float=False):
+    if self._size < seq_len:
+        raise ValueError(f"buffer has {self._size} steps < seq_len {seq_len}")
+    starts = self._rng.integers(0, self._size - seq_len + 1, size=batch_size)
+    return self.gather(starts, seq_len, to_float=to_float)`,
+        lang: "python",
+      },
+      deviceAndLogging: {
+        title: "Device & Logging",
+        description: "Two cross-cutting utilities: device auto-detection (cuda > xpu > mps > cpu) with coordinated RNG seeding, and a dual logger that mirrors scalar metrics to both TensorBoard and a machine-readable metrics.jsonl, keyed on env step.",
+        files: ["wm/common/device.py", "wm/common/logger.py"],
+        code: `def get_device() -> torch.device:
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    if hasattr(torch, "xpu") and torch.xpu.is_available():
+        return torch.device("xpu")
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")`,
+        lang: "python",
+      },
+      atomicCheckpointing: {
+        title: "Atomic Checkpoint / Resume",
+        description: "Saves the full training state — model, optimizer, replay buffer, step counter, and RNG across python/numpy/torch/cuda/xpu — to one file via temp-then-replace so a crash never leaves a half-written checkpoint. map_location makes checkpoints portable between CPU and GPU, enabling --resume after Colab session drops.",
+        files: ["wm/common/checkpoint.py"],
+        code: `tmp_path = path.with_suffix(path.suffix + ".tmp")
+torch.save(payload, tmp_path)
+os.replace(tmp_path, path)`,
+        lang: "python",
+      },
+      evalAndViz: {
+        title: "Eval & Open-loop Viz",
+        description: "Inspection tooling: a model-agnostic evaluate() rollout that returns return/length stats in a separate eval env, plus frame helpers that tile grids, export GIFs, and stack real-over-predicted frames for open-loop rollout inspection — the first thing to check when scores are off.",
+        files: ["wm/common/eval.py", "wm/common/viz.py"],
+        code: `def frames_to_grid(frames, *, path=None, ncol=None):
+    """Tile (T, H, W, C) into (rows*H, cols*W, C) and optionally save."""
+    frames = _to_uint8(frames)`,
+        lang: "python",
+      },
+      rssmCore: {
+        title: "RSSM Core (h, z)",
+        description: "The PlaNet recurrent state-space model: a deterministic GRU path h_t plus a stochastic Gaussian latent z_t. img_step rolls the prior forward (imagination); obs_step corrects it into a posterior using the observation embedding. The concatenated [h, z] is the model state fed to the decoder and reward head.",
+        files: ["wm/algos/rssm/rssm.py"],
+        code: `def obs_step(self, prev, prev_action, embed):
+    prior = self.img_step(prev, prev_action)
+    x = torch.cat([prior["deter"], embed], dim=-1)
+    mean, std = self._to_dist(self._post_net(x))
+    stoch = mean + std * torch.randn_like(std)
+    return {"deter": prior["deter"], "stoch": stoch, "mean": mean, "std": std}, prior`,
+        lang: "python",
+      },
+      convEncoderDecoder: {
+        title: "Conv Encoder / Decoder + Reward",
+        description: "The vision and reward modules. A 4-layer stride-2 conv encoder compresses 64×64 frames to a 1024-d embedding; a symmetric transposed-conv decoder reconstructs frames from [h, z]; an MLP head predicts scalar reward. These supply the reconstruction and reward supervision signals.",
+        files: ["wm/algos/rssm/modules.py"],
+        code: `self.net = nn.Sequential(
+    nn.Conv2d(c, depth, 4, stride=2), nn.ReLU(),
+    nn.Conv2d(depth, 2 * depth, 4, stride=2), nn.ReLU(),
+    nn.Conv2d(2 * depth, 4 * depth, 4, stride=2), nn.ReLU(),
+    nn.Conv2d(4 * depth, 8 * depth, 4, stride=2), nn.ReLU(),
+)`,
+        lang: "python",
+      },
+      latentOvershooting: {
+        title: "Latent Overshooting KL",
+        description: "PlaNet's multi-step regularizer: for each step t and distance d, the prior is rolled d steps and pulled toward the stop-gradient posterior at t+d via KL, averaged over distances and clamped by free-nats to prevent collapse. This is what trains the prior to predict well over long horizons — the key to open-loop quality.",
+        files: ["wm/algos/rssm/rssm.py"],
+        code: `for d in range(1, big_d + 1):
+    state = self.img_step(state, action[:, idx])      # prior at idx
+    tgt_mean = post["mean"][:, idx].detach()
+    tgt_std = post["std"][:, idx].detach()
+    kl = kl_normal_sum(tgt_mean, tgt_std, state["mean"], state["std"])
+    kl = torch.clamp(kl, min=self.free_nats)`,
+        lang: "python",
+      },
+      trainRssmLoop: {
+        title: "Train Loop (train_rssm.py)",
+        description: "The orchestrating entry point. Each step it samples a (B, L) batch from the buffer, computes the combined recon + reward + overshooting-KL loss, clips gradients and steps Adam, logs metrics, and periodically writes open-loop rollouts and a resumable checkpoint. A --smoke mode runs tiny dims on CPU for sanity.",
+        files: ["scripts/train_rssm.py", "wm/configs/rssm/default.yaml"],
+        code: `raw = buffer.sample(cfg.batch_size, cfg.seq_len, to_float=cfg.to_float)
+batch = _to_batch(raw, discrete, action_dim, device)
+loss, metrics = model.loss(batch)
+optimizer.zero_grad(); loss.backward()
+torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.optim.grad_clip)
+optimizer.step()`,
+        lang: "python",
+      },
+    };
+
+    const LEGEND = [
+      { label: 'Entry point', color: 'bg-node-component' },
+      { label: 'World model', color: 'bg-node-composable' },
+      { label: 'Infra utility', color: 'bg-node-utility' },
+      { label: 'Data', color: 'bg-node-data' },
+      { label: 'External wrapper', color: 'bg-node-external' },
+    ];
+
+    // Shiki pre-highlight
+    const langs = [...new Set(Object.values(NODES).map(n => n.lang).filter(Boolean))];
+    if (langs.length === 0) langs.push('typescript');
+    let highlighter = null;
+    try { highlighter = await createHighlighter({ themes: ['vitesse-dark'], langs }); }
+    catch (e) { console.warn('Shiki failed:', e); }
+    const HIGHLIGHTED = {};
+    for (const [id, node] of Object.entries(NODES)) {
+      if (node.code && highlighter) {
+        try { HIGHLIGHTED[id] = highlighter.codeToHtml(node.code, { lang: node.lang || 'typescript', theme: 'vitesse-dark' }); }
+        catch (e) { console.warn(`Highlight failed for ${id}:`, e); }
+      }
+    }
+
+    const MERMAID_THEME = {
+      primaryColor: '#0a0a0a', primaryTextColor: '#ffffff', primaryBorderColor: '#2a2a2a',
+      lineColor: '#a0a0a0', background: '#000000',
+    };
+
+    const h = React.createElement;
+
+    function usePanZoom() {
+      const viewportRef = useRef(null), canvasRef = useRef(null), zoomDisplayRef = useRef(null);
+      const st = useRef({ zoom: 1, panX: 0, panY: 0 });
+      const drag = useRef({ on: false, lx: 0, ly: 0 });
+      const apply = useCallback(() => {
+        const { zoom, panX, panY } = st.current;
+        if (canvasRef.current) canvasRef.current.style.transform = `translate(${panX}px,${panY}px) scale(${zoom})`;
+        if (zoomDisplayRef.current) zoomDisplayRef.current.textContent = Math.round(zoom * 100) + '%';
+      }, []);
+      const fitToScreen = useCallback(() => {
+        const svg = canvasRef.current?.querySelector('svg');
+        const vp = viewportRef.current;
+        if (!svg || !vp) return;
+        const s = st.current;
+        const vw = vp.clientWidth, vh = vp.clientHeight;
+        const sw = svg.getBoundingClientRect().width / s.zoom;
+        const sh = svg.getBoundingClientRect().height / s.zoom;
+        const fit = Math.max(0.15, Math.min(2, Math.min((vw - 80) / sw, (vh - 80) / sh)));
+        s.zoom = fit; s.panX = (vw - sw * fit) / 2; s.panY = (vh - sh * fit) / 2;
+        apply();
+      }, [apply]);
+      useEffect(() => {
+        const vp = viewportRef.current;
+        if (!vp) return;
+        const onWheel = (e) => {
+          e.preventDefault();
+          const r = vp.getBoundingClientRect();
+          const mx = e.clientX - r.left, my = e.clientY - r.top, s = st.current;
+          const f = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+          const nz = Math.min(4, Math.max(0.15, s.zoom * f)), sc = nz / s.zoom;
+          s.panX = mx - sc * (mx - s.panX); s.panY = my - sc * (my - s.panY); s.zoom = nz;
+          apply();
+        };
+        const onDown = (e) => {
+          if (e.target.closest('.node')) return;
+          drag.current = { on: true, lx: e.clientX, ly: e.clientY };
+          vp.setPointerCapture(e.pointerId);
+        };
+        const onMove = (e) => {
+          const d = drag.current; if (!d.on) return;
+          st.current.panX += e.clientX - d.lx; st.current.panY += e.clientY - d.ly;
+          d.lx = e.clientX; d.ly = e.clientY; apply();
+        };
+        const onUp = () => { drag.current.on = false; };
+        vp.addEventListener('wheel', onWheel, { passive: false });
+        vp.addEventListener('pointerdown', onDown);
+        vp.addEventListener('pointermove', onMove);
+        vp.addEventListener('pointerup', onUp);
+        vp.addEventListener('pointercancel', onUp);
+        window.addEventListener('resize', fitToScreen);
+        return () => {
+          vp.removeEventListener('wheel', onWheel);
+          vp.removeEventListener('pointerdown', onDown);
+          vp.removeEventListener('pointermove', onMove);
+          vp.removeEventListener('pointerup', onUp);
+          vp.removeEventListener('pointercancel', onUp);
+          window.removeEventListener('resize', fitToScreen);
+        };
+      }, [apply, fitToScreen]);
+      const zoomIn = useCallback(() => { st.current.zoom = Math.min(4, st.current.zoom * 1.25); apply(); }, [apply]);
+      const zoomOut = useCallback(() => { st.current.zoom = Math.max(0.15, st.current.zoom / 1.25); apply(); }, [apply]);
+      return { viewportRef, canvasRef, zoomDisplayRef, zoomIn, zoomOut, fitToScreen };
+    }
+
+    function MermaidDiagram({ onNodeClick }) {
+      const ref = useRef(null);
+      useEffect(() => {
+        window.nodeClickHandler = onNodeClick;
+        mermaid.initialize({
+          startOnLoad: false, theme: 'dark', securityLevel: 'loose',
+          themeVariables: {
+            ...MERMAID_THEME,
+            secondaryColor: '#000000', tertiaryColor: '#000000',
+            mainBkg: '#0a0a0a', nodeBorder: '#2a2a2a',
+            clusterBkg: 'rgba(10,10,10,0.8)', clusterBorder: '#7c3aed',
+            titleColor: '#ffffff', edgeLabelBackground: 'transparent',
+          },
+          flowchart: { useMaxWidth: false, htmlLabels: true, curve: 'basis' },
+        });
+        mermaid.render('walkthrough-diagram', DIAGRAM).then(({ svg, bindFunctions }) => {
+          if (ref.current) { ref.current.innerHTML = svg; bindFunctions?.(ref.current); }
+        });
+        return () => { delete window.nodeClickHandler; };
+      }, [onNodeClick]);
+      return h('div', { ref, className: 'mermaid-wrap' });
+    }
+
+    function Summary({ collapsed, onToggle }) {
+      if (collapsed) {
+        return h('div', {
+          onClick: onToggle,
+          className: 'fixed top-16 left-6 z-10 px-3 py-1.5 bg-wt-surface/60 backdrop-blur border border-wt-border rounded-full shadow-lg cursor-pointer hover:bg-wt-surface/80 transition-all duration-300',
+        }, h('span', { className: 'text-xs text-wt-muted font-medium' }, 'ℹ︎ Summary'));
+      }
+      return h('div', {
+        onClick: onToggle,
+        className: 'fixed top-16 left-6 z-10 max-w-lg px-4 py-3 bg-wt-surface/80 backdrop-blur border border-wt-border rounded-lg shadow-lg cursor-pointer transition-all duration-300',
+      },
+        h('p', { className: 'text-sm text-wt-muted leading-relaxed' }, SUMMARY),
+        h('p', { className: 'text-[0.65rem] text-wt-muted/50 mt-1.5' }, 'Click to dismiss'),
+      );
+    }
+
+    function DetailPanel({ nodeId, node, onClose }) {
+      useEffect(() => {
+        const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+      }, [onClose]);
+      const codeHtml = HIGHLIGHTED[nodeId];
+      return h('div', { className: 'fixed top-4 right-4 bottom-4 w-[560px] z-30 bg-wt-surface border border-wt-border rounded-xl shadow-2xl flex flex-col overflow-hidden' },
+        h('button', {
+          onClick: onClose,
+          className: 'absolute top-3 right-3 z-10 w-7 h-7 rounded-md border border-wt-border bg-wt-raised text-wt-muted flex items-center justify-center text-lg hover:bg-wt-red hover:border-wt-red hover:text-white transition-colors',
+        }, '×'),
+        h('div', { className: 'flex-1 overflow-y-auto p-5' },
+          h('h2', { className: 'text-lg font-bold text-wt-fg mb-3 pr-9' }, node.title),
+          h('div', { className: 'dt-body' }, h('p', null, node.description)),
+          node.code && h('div', { className: 'dt-body' },
+            codeHtml
+              ? h('div', { dangerouslySetInnerHTML: { __html: codeHtml } })
+              : h('pre', { className: 'code-fallback' }, h('code', null, node.code)),
+          ),
+          node.files?.length > 0 && h('div', { className: 'mt-4 pt-3 border-t border-wt-border' },
+            h('div', { className: 'text-[0.7rem] uppercase tracking-wider text-wt-muted font-semibold mb-1.5' }, 'Files'),
+            h('code', { className: 'text-sm text-wt-file font-mono leading-relaxed' },
+              node.files.map((f, i) => h('span', { key: i }, f, h('br'))),
+            ),
+          ),
+        ),
+      );
+    }
+
+    function ZoomControls({ zoomDisplayRef, onZoomIn, onZoomOut, onFit }) {
+      const btn = 'w-8 h-8 rounded-md border border-wt-border bg-wt-surface text-wt-muted flex items-center justify-center hover:bg-wt-raised hover:text-wt-fg transition-colors';
+      return h('div', { className: 'fixed bottom-5 left-5 z-20 flex items-center gap-2' },
+        h('button', { className: btn, onClick: onZoomOut }, '−'),
+        h('span', { ref: zoomDisplayRef, className: 'text-xs text-wt-muted w-10 text-center' }, '100%'),
+        h('button', { className: btn, onClick: onZoomIn }, '+'),
+        h('button', { className: btn + ' w-auto px-2 text-xs', onClick: onFit }, 'Fit'),
+      );
+    }
+
+    function App() {
+      const [activeId, _setActiveId] = useState(null);
+      const [summaryCollapsed, setSummaryCollapsed] = useState(true);
+      const pz = usePanZoom();
+      const setActiveNode = useCallback((nodeId) => {
+        _setActiveId(nodeId);
+        document.querySelectorAll('.mermaid-wrap .node').forEach(n => { n.style.opacity = nodeId ? '0.4' : '1'; });
+        if (nodeId) {
+          const el = document.querySelector(`.mermaid-wrap .node[id*="${nodeId}"]`);
+          if (el) el.style.opacity = '1';
+        }
+      }, []);
+      const closeDetail = useCallback(() => {
+        _setActiveId(null);
+        document.querySelectorAll('.mermaid-wrap .node').forEach(n => { n.style.opacity = '1'; });
+      }, []);
+      useEffect(() => { setTimeout(pz.fitToScreen, 600); }, [pz.fitToScreen]);
+
+      return h(React.Fragment, null,
+        h('header', { className: 'fixed top-0 inset-x-0 z-10 px-6 py-3.5 bg-gradient-to-b from-wt-bg to-transparent pointer-events-none' },
+          h('h1', { className: 'text-base font-semibold text-wt-fg' }, TITLE),
+          h('p', { className: 'text-sm text-wt-muted mt-0.5' }, SUBTITLE),
+        ),
+        h(Summary, { collapsed: summaryCollapsed, onToggle: () => setSummaryCollapsed(c => !c) }),
+        h('div', { ref: pz.viewportRef, className: 'w-full h-screen overflow-hidden cursor-grab active:cursor-grabbing' },
+          h('div', { ref: pz.canvasRef, className: 'origin-top-left will-change-transform inline-block p-[80px_60px_60px]' },
+            h(MermaidDiagram, { onNodeClick: setActiveNode }),
+          ),
+        ),
+        h(ZoomControls, { zoomDisplayRef: pz.zoomDisplayRef, onZoomIn: pz.zoomIn, onZoomOut: pz.zoomOut, onFit: pz.fitToScreen }),
+        h('div', { className: 'fixed bottom-5 left-1/2 -translate-x-1/2 z-20 flex gap-4 px-4 py-2 bg-wt-surface border border-wt-border rounded-lg shadow-xl' },
+          LEGEND.map(l => h('span', { key: l.label, className: 'flex items-center gap-1.5 text-xs text-wt-muted' },
+            h('span', { className: `w-2 h-2 rounded-full ${l.color}` }), l.label,
+          )),
+        ),
+        activeId && NODES[activeId] && h(DetailPanel, { nodeId: activeId, node: NODES[activeId], onClose: closeDetail }),
+        h('div', { className: 'fixed bottom-5 right-5 z-20 text-xs text-wt-muted opacity-50' },
+          h('kbd', null, 'Scroll'), ' zoom · ', h('kbd', null, 'Drag'), ' pan · Click nodes',
+        ),
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+  </script>
+</body>
+</html>
